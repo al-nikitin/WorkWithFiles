@@ -3,6 +3,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -17,34 +18,40 @@ public class Main {
         String dirPath = "new_dir\\new_dir2\\";
         //writeToTxtFile(file, readTxtFile(root + file));
         //createLog();
-        createDirectoryWithBoolean(dirPath);
-        copyFile(file, dirPath);
+        //createDirectoryWithBoolean(dirPath);
+        //copyFile(file, dirPath);
         //listFilesUsingDirectoryStream(root);
         //zipDirectory(root + "file to zip.txt");
-        //zipDirectory(root + "folder to zip");
-        //unzip(root + "folder to zip.zip");
+        //zipDirectory(root + "folder_to_zip");
+        unzip(root + "folder_to_zip.zip");
     }
 
     public static void unzip(String zipPath) throws IOException {
         String destDirectory = zipPath.substring(0, zipPath.indexOf(".")) + "\\";
-        File destDir = new File(destDirectory);
-        if (!destDir.exists()) {
-            destDir.mkdir();
-        }
+        Path destDir = Path.of(destDirectory);
+        //if (!Files.exists(destDir)) Files.createDirectory(destDir);
         destDirectory = destDirectory.substring(0, destDirectory.lastIndexOf("\\", destDirectory.lastIndexOf("\\") - 1));
+        //System.out.println(destDirectory);
         ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipPath));
         ZipEntry entry = zipIn.getNextEntry();
         // iterates over entries in the zip file
         while (entry != null) {
             System.out.println(entry.getName());
-            String filePath = destDirectory + File.separator + entry.getName();
+            String filePathString = destDirectory + "\\" + entry.getName();
+            if (filePathString.endsWith("\\")) filePathString = filePathString.substring(0, filePathString.length() - 1);
+            filePathString.replace("\\", File.separator);
+            filePathString.replace("/", File.separator);
+            System.out.println("__ " + filePathString);
+            Path filePath = Path.of(filePathString);
+            //if (filePathString.equals(destDirectory)) continue;
             if (!entry.isDirectory()) {
                 // if the entry is a file, extracts it
-                extractFile(zipIn, filePath);
+                if (Files.exists(filePath)) Files.delete(filePath);
+                Files.createFile(filePath);
+                extractFile(zipIn, filePathString);
             } else {
                 // if the entry is a directory, make the directory
-                File dir = new File(filePath);
-                dir.mkdirs();
+                if (!Files.exists(filePath)) Files.createDirectory(filePath);
             }
             zipIn.closeEntry();
             entry = zipIn.getNextEntry();
@@ -52,14 +59,16 @@ public class Main {
         zipIn.close();
     }
 
-    private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
-        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
+    private static void extractFile(ZipInputStream zipIn, String filePathString) throws IOException {
+        FileOutputStream fos = new FileOutputStream(filePathString);
+        BufferedOutputStream bos = new BufferedOutputStream(fos);
         byte[] bytesIn = new byte[4096];
         int read = 0;
         while ((read = zipIn.read(bytesIn)) != -1) {
             bos.write(bytesIn, 0, read);
         }
         bos.close();
+        fos.close();
     }
 
     public static void zipDirectory(String sourceFile) throws IOException {
